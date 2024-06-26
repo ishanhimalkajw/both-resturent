@@ -1,0 +1,60 @@
+name: Node.js CI
+
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Set up Prisma
+        run: |
+          npm install @prisma/client
+          npx prisma generate
+
+      - name: Deploy to Server
+        env:
+          SSH_PRIVATE_KEY: sgBfiRUk+phfwX+StN6zYf98qiEp+JZ5ptVueXDknGM
+        run: |
+          # Set up SSH agent
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
+
+          # Increase SSH command timeout
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 ishan himalka@37.222.251.90 'bash -s' << 'EOF'
+          set -e
+
+          # Change to your project directory
+          cd /path/to/your/app
+
+          # Pull latest changes
+          git pull origin main
+
+          # Install dependencies
+          npm install
+
+          # Run Prisma migrations
+          npx prisma migrate deploy
+
+          # Restart the application
+          pm2 restart all
+
+          echo "Deployment completed successfully"
+          EOF
+
